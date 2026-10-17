@@ -11,12 +11,14 @@ async def main():
             await s.initialize()
             tools = await s.list_tools()
             print("tools:", [t.name for t in tools.tools])
-            for name, args in [("verify_credentials", {}), ("home_timeline", {"count": 3})]:
+            for name, args in [("verify_credentials", {}), ("home_timeline", {"count": 3})] + ([("mentions", {"count": 1}), ("public_timeline", {"count": 1}), ("search_public_timeline", {"q": "饭否", "count": 1}), ("user_timeline", {"count": 1}), ("favorites", {"count": 1}), ("get_user", {})] if "--all" in sys.argv else []):
                 res = await s.call_tool(name, args)
-                txt = "".join(getattr(c, "text", "") for c in res.content)
-                try: data = json.loads(txt)
-                except Exception: data = txt
-                if isinstance(data, dict) and "result" in data and len(data) == 1: data = data["result"]
+                sc = getattr(res, "structuredContent", None)
+                if isinstance(sc, dict) and "result" in sc: data = sc["result"]
+                elif sc: data = sc
+                else:
+                    parts = [json.loads(c.text) for c in res.content if getattr(c, "text", None)]
+                    data = parts[0] if len(parts) == 1 else parts
                 if isinstance(data, list):
                     for st in data[:3]: print(name, "->", st["user"]["name"], "|", st["text"][:20])
                 elif isinstance(data, dict) and "error" in data: print(name, "-> ERROR", data["error"])
