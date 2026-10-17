@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>fanfou-mcp</title>
-<meta name="description" content="An MCP server for Fanfou (饭否) that lets AI assistants read your timeline.">
+<meta name="description" content="An MCP server for Fanfou (饭否). Use the hosted instance — authorize in the browser and connect.">
 <link rel="icon" type="image/png" href="icon.png">
 <style>
   :root { color-scheme: light dark; --fg:#1d1d1f; --muted:#6e6e73; --line:#e5e5e7; --code:#f5f5f7; --link:#1d1d1f; --bg:#fff; }
@@ -33,20 +33,29 @@
     <img src="icon.png" alt="">
     <h1>fanfou-mcp</h1>
   </header>
-  <p class="tagline">An MCP server for Fanfou (饭否) that lets your AI assistant read your timeline.</p>
+  <p class="tagline">An MCP server for Fanfou (饭否). Use the hosted instance — authorize in the browser and connect.</p>
 
-  <p>fanfou-mcp connects Fanfou to Claude Desktop, Cursor, Grok Bot and other clients through the <a href="https://modelcontextprotocol.io">Model Context Protocol</a>. It runs locally over stdio, or remotely over Streamable HTTP — for example on Vercel.</p>
+  <p>fanfou-mcp connects Fanfou to Claude Desktop, Cursor, Grok Bot and other clients through the <a href="https://modelcontextprotocol.io">Model Context Protocol</a>. It runs locally over stdio, or remotely over Streamable HTTP. A hosted multi-user instance is available: open a link, approve Fanfou access, and paste the token into your client.</p>
 
   <h2>Features</h2>
   <ul>
+    <li>Multi-user hosting: <code>/authorize</code> → approve on Fanfou → a personal <code>ffm_</code> token for your own timeline.</li>
     <li>11 read-only tools: home timeline, mentions, user timelines, search, statuses, conversation context, users and favorites.</li>
     <li>4 write tools — post, delete, favorite, follow — each requiring an explicit <code>confirm=true</code>.</li>
-    <li>Set <code>FANFOU_MCP_READONLY=1</code> to leave the write tools out entirely. The HTTP server is read-only by default.</li>
+    <li>Set <code>FANFOU_MCP_READONLY=1</code> to leave the write tools out entirely. The HTTP server (and the hosted instance) is read-only by default.</li>
     <li>Bearer token authentication for the HTTP endpoint.</li>
     <li>Stateless JSON responses, suited to serverless hosting.</li>
   </ul>
 
   <h2>Quick start</h2>
+  <p><strong>Use the hosted instance</strong></p>
+  <ol>
+    <li>Open <a href="https://fanfou-mcp.vercel.app/authorize">https://fanfou-mcp.vercel.app/authorize</a> and approve access on Fanfou.</li>
+    <li>Copy the personal token and the config snippet shown on the next page (shown once).</li>
+  </ol>
+  <p>Point your MCP client at <code>https://fanfou-mcp.vercel.app/mcp</code> with <code>Authorization: Bearer &lt;your ffm_ token&gt;</code>.</p>
+
+  <p><strong>Self-host</strong></p>
   <p>Requires <a href="https://docs.astral.sh/uv/">uv</a> and Python 3.12 or later.</p>
 <pre><code>git clone https://github.com/Anthonyeef/fanfou-mcp.git
 cd fanfou-mcp
@@ -68,11 +77,11 @@ uv sync</code></pre>
     }
   }
 }</code></pre>
-  <p>Remove <code>FANFOU_MCP_READONLY</code> to enable the write tools. Deployment to Vercel is covered in the <a href="https://github.com/Anthonyeef/fanfou-mcp#remote-deployment-vercel">README</a>.</p>
+  <p>Remove <code>FANFOU_MCP_READONLY</code> to enable the write tools. Remote and multi-user deployment is covered in the <a href="https://github.com/Anthonyeef/fanfou-mcp#remote-deployment-vercel">README</a>.</p>
 
   <h2>Notes</h2>
   <ul>
-    <li>You need the key of a Fanfou app that has already been approved. Fanfou has been whitelist-only since 2020 and no longer accepts new applications; no key is included.</li>
+    <li>Self-hosting still needs the key of a Fanfou app that has already been approved — Fanfou has been whitelist-only since 2020. Users of the hosted instance do not need their own key.</li>
     <li>OAuth 1.0a signatures use the <code>http://</code> URL in the base string, while requests are sent over <code>https://</code>.</li>
   </ul>
 
