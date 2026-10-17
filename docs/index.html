@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fanfou-mcp</title>
+<meta name="description" content="An MCP server for Fanfou (饭否) that lets AI assistants read your timeline.">
+<link rel="icon" type="image/png" href="icon.png">
+<style>
+  :root { color-scheme: light dark; --fg:#1d1d1f; --muted:#6e6e73; --line:#e5e5e7; --code:#f5f5f7; --link:#1d1d1f; --bg:#fff; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#e6e6e6; --muted:#9a9a9f; --line:#2c2c2e; --code:#1c1c1e; --link:#e6e6e6; --bg:#111; } }
+  body { margin:0; font:16px/1.65 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif; color:var(--fg); background:var(--bg); }
+  main { max-width:620px; margin:0 auto; padding:72px 24px 48px; }
+  header { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
+  header img { width:44px; height:44px; }
+  h1 { font-size:22px; font-weight:600; margin:0; letter-spacing:-0.01em; }
+  .tagline { color:var(--muted); margin:0 0 40px; }
+  h2 { font-size:15px; font-weight:600; margin:40px 0 8px; }
+  p, li { margin:0 0 10px; }
+  ul { padding-left:20px; margin:0; }
+  a { color:var(--link); text-underline-offset:3px; }
+  code { font:13.5px/1.6 ui-monospace, "SF Mono", Menlo, monospace; }
+  pre { background:var(--code); padding:14px 16px; border-radius:6px; overflow-x:auto; margin:0; }
+  pre + p { margin-top:16px; }
+  p code, li code { background:var(--code); padding:1px 5px; border-radius:4px; }
+  footer { margin-top:56px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:14px; }
+  footer a { color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="icon.png" alt="">
+    <h1>fanfou-mcp</h1>
+  </header>
+  <p class="tagline">An MCP server for Fanfou (饭否) that lets your AI assistant read your timeline.</p>
+
+  <p>fanfou-mcp connects Fanfou to Claude Desktop, Cursor, Grok Bot and other clients through the <a href="https://modelcontextprotocol.io">Model Context Protocol</a>. It runs locally over stdio, or remotely over Streamable HTTP — for example on Vercel.</p>
+
+  <h2>Features</h2>
+  <ul>
+    <li>11 read-only tools: home timeline, mentions, user timelines, search, statuses, conversation context, users and favorites.</li>
+    <li>4 write tools — post, delete, favorite, follow — each requiring an explicit <code>confirm=true</code>.</li>
+    <li>Set <code>FANFOU_MCP_READONLY=1</code> to leave the write tools out entirely. The HTTP server is read-only by default.</li>
+    <li>Bearer token authentication for the HTTP endpoint.</li>
+    <li>Stateless JSON responses, suited to serverless hosting.</li>
+  </ul>
+
+  <h2>Quick start</h2>
+  <p>Requires <a href="https://docs.astral.sh/uv/">uv</a> and Python 3.12 or later.</p>
+<pre><code>git clone https://github.com/Anthonyeef/fanfou-mcp.git
+cd fanfou-mcp
+uv sync</code></pre>
+  <p>Then add it to your client’s <code>mcp.json</code>:</p>
+<pre><code>{
+  "mcpServers": {
+    "fanfou": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/fanfou-mcp",
+               "python", "server.py"],
+      "env": {
+        "FANFOU_API_KEY": "&lt;consumer_key&gt;",
+        "FANFOU_API_SECRET": "&lt;consumer_secret&gt;",
+        "FANFOU_OAUTH_TOKEN": "&lt;access_token&gt;",
+        "FANFOU_OAUTH_TOKEN_SECRET": "&lt;access_token_secret&gt;",
+        "FANFOU_MCP_READONLY": "1"
+      }
+    }
+  }
+}</code></pre>
+  <p>Remove <code>FANFOU_MCP_READONLY</code> to enable the write tools. Deployment to Vercel is covered in the <a href="https://github.com/Anthonyeef/fanfou-mcp#remote-deployment-vercel">README</a>.</p>
+
+  <h2>Notes</h2>
+  <ul>
+    <li>You need the key of a Fanfou app that has already been approved. Fanfou has been whitelist-only since 2020 and no longer accepts new applications; no key is included.</li>
+    <li>OAuth 1.0a signatures use the <code>http://</code> URL in the base string, while requests are sent over <code>https://</code>.</li>
+  </ul>
+
+  <footer>
+    <a href="https://github.com/Anthonyeef/fanfou-mcp">Source on GitHub</a> · MIT License
+  </footer>
+</main>
+</body>
+</html>
