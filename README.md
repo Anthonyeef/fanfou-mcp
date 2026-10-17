@@ -11,7 +11,7 @@ It ships with two transports sharing the same tool set:
 | Transport | Entry point | Typical use |
 |---|---|---|
 | **stdio** | `server.py` | Local MCP clients (Claude Desktop, Cursor, …) launching the server as a subprocess |
-| **Streamable HTTP** | `http_app.py` (ASGI) | Remote / serverless hosting, e.g. on **Vercel**, protected by a bearer token |
+| **Streamable HTTP** | `http_app.py` (ASGI) | Remote / serverless hosting, e.g. on **Vercel** — single-user (one bearer token) or **multi-user** (each user authorizes their own Fanfou account) |
 
 Python ≥ 3.12, built on the official [`mcp` Python SDK](https://github.com/modelcontextprotocol/python-sdk) (FastMCP).
 The Fanfou client itself uses only the standard library (no `requests` / `oauthlib`).
@@ -77,10 +77,12 @@ the model's context small. API errors are returned as `{"error": "..."}` rather 
 
 ```
 fanfou_api.py   Minimal Fanfou OAuth 1.0a client (HMAC-SHA1 signing, stdlib urllib)
-creds.py        Credential resolution: app key from env + per-caller user token via a pluggable TokenStore
+creds.py        Credential resolution: app key from env + per-request user token; multi-user token storage
+kv.py           Tiny KV client: Vercel KV / Upstash Redis REST API (stdlib), or in-memory for local dev
 tools.py        FastMCP instance and all 15 tool definitions; READONLY switch
 server.py       stdio entry point            ->  mcp.run()
-http_app.py     Streamable HTTP ASGI app     ->  POST /mcp, GET /healthz, bearer auth
+http_app.py     Streamable HTTP ASGI app     ->  POST /mcp, GET /healthz, bearer auth,
+                                                 GET /authorize, GET /callback, POST /revoke (multi-user)
 ```
 
 Helper scripts:
@@ -91,14 +93,17 @@ Helper scripts:
 | `dev_http.sh` | Serve `http_app:app` locally with uvicorn on `127.0.0.1:${PORT:-8765}` |
 | `test_client.py` | stdio smoke test: list tools, call a few read tools (`--all` for more) |
 | `test_http_client.py` | HTTP smoke test against a local or remote `/mcp` endpoint |
+| `test_multiuser.py` | Multi-user end-to-end test (OAuth routes, per-user tokens, revoke) |
+| `dev/mock_upstash.py` | Local stand-in for the KV REST API, for testing |
+| `dev/mint_token.py` | Issue a personal token for an existing Fanfou access token (admin / migration) |
 
 Notes on the HTTP app:
 
 - **Stateless, JSON responses** (`stateless_http=True`, `json_response=True`) and a fresh
   `StreamableHTTPSessionManager` per request, so it does not depend on ASGI lifespan — safe for serverless.
-- `creds.current_principal` is a `ContextVar` set per request. Today every caller maps to a single
-  owner account (`EnvTokenStore`); the hook exists so a multi-user deployment can plug in MCP OAuth and a
-  KV-backed `TokenStore` without touching the tools.
+- `creds.current_principal` / `creds.current_user_token` are `ContextVar`s set per request by the auth
+  layer. In multi-user mode they carry the calling user's Fanfou token (looked up in KV); with the admin
+  token, or over stdio, the owner token from env is used. Tools never see bearer tokens.
 
 ---
 
@@ -125,9 +130,12 @@ These cost real debugging time; they are documented here so you don't have to re
 |---|---|---|
 | `FANFOU_API_KEY` | yes | Consumer key of an **approved** Fanfou app |
 | `FANFOU_API_SECRET` | yes | Consumer secret |
-| `FANFOU_OAUTH_TOKEN` | yes | User access token |
-| `FANFOU_OAUTH_TOKEN_SECRET` | yes | User access token secret |
-| `MCP_AUTH_TOKEN` | HTTP only | Bearer token clients must send as `Authorization: Bearer <token>` |
+| `FANFOU_OAUTH_TOKEN` | single-user | User access token (owner account; optional in multi-user mode) |
+| `FANFOU_OAUTH_TOKEN_SECRET` | single-user | User access token secret |
+| `MCP_AUTH_TOKEN` | HTTP only | Admin / owner bearer token (`Authorization: Bearer <token>`); acts as the env account |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | multi-user | Vercel KV / Upstash Redis REST credentials. Setting them enables multi-user mode (`UPSTASH_REDIS_REST_URL` / `_TOKEN` also accepted) |
+| `FANFOU_MCP_PUBLIC_URL` | multi-user | Public origin used to build the OAuth callback, e.g. `https://<your-project>.vercel.app`. Falls back to the request's Host header |
+| `FANFOU_MCP_KV` | no | `memory` = in-process KV for local dev (single process, lost on restart) |
 | `FANFOU_MCP_READONLY` | no | `1` = don't register write tools. Default `0` for stdio, `1` for HTTP |
 | `FANFOU_MCP_ALLOW_NOAUTH` | no | `1` = allow HTTP requests without bearer **when `MCP_AUTH_TOKEN` is unset**. Local dev only — never in production |
 
@@ -236,6 +244,89 @@ function elsewhere — the Fanfou API has been reachable from US regions as well
 
 ---
 
+## Hosting a multi-user instance / 托管多用户实例
+
+One deployment can serve many people: everyone connects to the same `/mcp` endpoint, but each person
+authorizes **their own** Fanfou account in the browser and gets a **personal bearer token**, so tools read
+their own timeline. 同一个实例服务多人，每人授权自己的饭否账号、拿到自己的个人令牌。
+
+How it works:
+
+1. `GET /authorize` — the server requests a Fanfou request token (with `oauth_callback=<public url>/callback`),
+   stores its secret in KV for 10 minutes, and redirects the browser to Fanfou's authorization page.
+2. The user logs in to Fanfou and approves the app.
+3. `GET /callback` — Fanfou redirects back; the server consumes the request-token secret (one-shot), exchanges it
+   for the user's access token, calls `verify_credentials`, generates a random personal token (`ffm_…`,
+   256 bits) and shows it once, together with a ready-to-paste MCP client config.
+4. `POST /mcp` with `Authorization: Bearer ffm_…` — the server looks the token up in KV and runs the tools with
+   that user's Fanfou token. Unknown or revoked tokens get `401`.
+5. `POST /revoke` with the same bearer deletes the personal token.
+
+Storage (Vercel KV / Upstash Redis, REST API):
+
+| Key | Value | TTL |
+|---|---|---|
+| `fanfou-mcp:rt:<request_token>` | request token secret | 10 min, deleted on use |
+| `fanfou-mcp:user:<sha256(personal_token)>` | `{oauth_token, oauth_token_secret, fanfou_user_id, created_at}` | none |
+
+Personal tokens are never stored in clear, only their SHA-256. The KV does hold users' Fanfou access tokens,
+so treat the KV credentials as secrets.
+
+Setup on Vercel: create a KV / Upstash Redis store and connect it to the project (this injects
+`KV_REST_API_URL` and `KV_REST_API_TOKEN`), set `FANFOU_MCP_PUBLIC_URL`, keep `FANFOU_API_KEY` /
+`FANFOU_API_SECRET` (an approved app), and redeploy. `MCP_AUTH_TOKEN` + `FANFOU_OAUTH_TOKEN[_SECRET]` are
+optional and keep working as an admin/owner login. See [DEPLOY.md](DEPLOY.md).
+
+Things to consider before opening an instance to others:
+
+- All users share **one consumer key**: Fanfou rate limits apply to that app, and abuse by one user can
+  affect everyone. Make sure your use of the key complies with Fanfou's terms.
+- Keep the instance **read-only** (`FANFOU_MCP_READONLY=1`, the HTTP default).
+- Anyone holding a personal token can read that user's Fanfou (including protected statuses they can see).
+
+Local test without a real KV:
+
+```bash
+python dev/mock_upstash.py 8079 &                       # fake KV REST API
+export KV_REST_API_URL=http://127.0.0.1:8079 KV_REST_API_TOKEN=dev
+export FANFOU_API_KEY=... FANFOU_API_SECRET=... FANFOU_OAUTH_TOKEN=... FANFOU_OAUTH_TOKEN_SECRET=...
+export MCP_AUTH_TOKEN=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+./dev_http.sh &
+uv run python test_multiuser.py                         # end-to-end checks
+# or by hand: open http://127.0.0.1:8765/authorize in a browser, approve on Fanfou,
+# then: MCP_AUTH_TOKEN=<the ffm_ token shown> uv run python test_http_client.py
+```
+
+---
+
+## Connecting as a user / 作为用户如何授权接入
+
+If someone runs a hosted instance for you (e.g. `https://<instance>`):
+
+1. Open **`https://<instance>/authorize`** in your browser, log in to Fanfou and click approve.
+   打开授权链接，登录饭否并同意授权。
+2. You land on a page showing your **personal token** (`ffm_…`) and a config snippet. Copy it now — it is
+   shown only once. 令牌只显示一次，请立即保存。
+3. Add the server to your MCP client:
+   ```json
+   {
+     "mcpServers": {
+       "fanfou": {
+         "url": "https://<instance>/mcp",
+         "headers": { "Authorization": "Bearer <your personal token>" }
+       }
+     }
+   }
+   ```
+4. To disconnect: `curl -X POST https://<instance>/revoke -H "Authorization: Bearer <your personal token>"`,
+   and/or revoke the app's authorization in your Fanfou account settings. Lost the token? Just authorize again
+   to get a new one.
+
+The hosted instance is read-only: it can read your timeline, mentions, favorites and search, but cannot post,
+delete, favorite or follow on your behalf.
+
+---
+
 ## OAuth authorization (oob PIN)
 
 Fanfou uses OAuth 1.0a. For a personal setup the simplest way to get an access token is the
@@ -297,8 +388,8 @@ secret store). You can revoke the authorization from your Fanfou account setting
 
 ## Roadmap
 
-- [ ] MCP OAuth for the HTTP server (per-user principal instead of a shared bearer token)
-- [ ] KV/Redis-backed `TokenStore` + web OAuth callback flow, enabling multi-user hosting
+- [x] KV/Redis-backed per-user tokens + web OAuth callback flow, enabling multi-user hosting
+- [ ] MCP OAuth (authorization-server metadata) so clients can connect without pasting a token
 - [ ] Photo upload (`/photos/upload.json`), direct messages, follower/friend lists
 
 Contributions are welcome — please open an issue or PR.

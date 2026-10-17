@@ -20,6 +20,56 @@ class FanfouError(Exception):
     pass
 
 
+def oauth_header(method, http_url, params, ck, cs, tok="", ts="", **oauth_extra):
+    """Build an OAuth1 HMAC-SHA1 Authorization header. `http_url` is the http:// URL used in the base string."""
+    p = {"oauth_consumer_key": ck, "oauth_nonce": secrets.token_hex(8),
+         "oauth_signature_method": "HMAC-SHA1", "oauth_timestamp": str(int(time.time())),
+         "oauth_version": "1.0", **oauth_extra}
+    if tok:
+        p["oauth_token"] = tok
+    allp = {**p, **{k: str(v) for k, v in (params or {}).items()}}
+    norm = "&".join("%s=%s" % (_q(k), _q(v)) for k, v in sorted(allp.items()))
+    base = "&".join([method, _q(http_url), _q(norm)])
+    key = ("%s&%s" % (_q(cs), _q(ts))).encode()
+    p["oauth_signature"] = base64.b64encode(hmac.new(key, base.encode(), hashlib.sha1).digest()).decode()
+    return "OAuth " + ", ".join('%s="%s"' % (k, _q(v)) for k, v in p.items())
+
+
+# ---- 3-legged OAuth (web flow) against fanfou.com/oauth/* ----
+OAUTH_HOST = "fanfou.com"
+
+
+def _oauth_call(path, ck, cs, tok="", ts="", **oauth_extra):
+    hdr = {"Authorization": oauth_header("GET", "http://%s%s" % (OAUTH_HOST, path), {}, ck, cs, tok, ts, **oauth_extra),
+           "User-Agent": UA}
+    req = urllib.request.Request("https://%s%s" % (OAUTH_HOST, path), headers=hdr)
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            body = r.read().decode()
+    except urllib.error.HTTPError as e:
+        raise FanfouError("HTTP %s: %s" % (e.code, e.read().decode(errors="replace")[:300]))
+    d = dict(urllib.parse.parse_qsl(body))
+    if not (d.get("oauth_token") and d.get("oauth_token_secret")):
+        raise FanfouError("unexpected OAuth response: %s" % body[:200])
+    return d
+
+
+def oauth_request_token(ck, cs, callback=None):
+    """Step 1: returns {"oauth_token", "oauth_token_secret"} (request token)."""
+    return _oauth_call("/oauth/request_token", ck, cs, **({"oauth_callback": callback} if callback else {}))
+
+
+def oauth_authorize_url(request_token, callback):
+    """Step 2: URL the user opens to approve the app (Fanfou takes the callback here)."""
+    return "https://%s/oauth/authorize?oauth_token=%s&oauth_callback=%s" % (OAUTH_HOST, _q(request_token), _q(callback))
+
+
+def oauth_access_token(ck, cs, request_token, request_token_secret, verifier=None):
+    """Step 3: exchange the approved request token for the user's access token."""
+    return _oauth_call("/oauth/access_token", ck, cs, request_token, request_token_secret,
+                       **({"oauth_verifier": verifier} if verifier else {}))
+
+
 class Fanfou:
     def __init__(self, ck=None, cs=None, tok=None, ts=None):
         self.ck = ck or os.environ.get("FANFOU_API_KEY", "")
@@ -32,15 +82,7 @@ class Fanfou:
             raise FanfouError("missing env: " + ", ".join(missing))
 
     def _auth(self, method, path, params):
-        p = {"oauth_consumer_key": self.ck, "oauth_nonce": secrets.token_hex(8),
-             "oauth_signature_method": "HMAC-SHA1", "oauth_timestamp": str(int(time.time())),
-             "oauth_version": "1.0", "oauth_token": self.tok}
-        allp = {**p, **{k: str(v) for k, v in params.items()}}
-        norm = "&".join("%s=%s" % (_q(k), _q(v)) for k, v in sorted(allp.items()))
-        base = "&".join([method, _q("http://%s%s" % (API, path)), _q(norm)])
-        key = ("%s&%s" % (_q(self.cs), _q(self.ts))).encode()
-        p["oauth_signature"] = base64.b64encode(hmac.new(key, base.encode(), hashlib.sha1).digest()).decode()
-        return "OAuth " + ", ".join('%s="%s"' % (k, _q(v)) for k, v in p.items())
+        return oauth_header(method, "http://%s%s" % (API, path), params, self.ck, self.cs, self.tok, self.ts)
 
     def request(self, method, path, params=None):
         params = {k: v for k, v in (params or {}).items() if v is not None and v != ""}

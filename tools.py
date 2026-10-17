@@ -6,7 +6,6 @@ import os
 import creds
 
 mcp = FastMCP("fanfou", stateless_http=True, json_response=True)
-_clients = {}
 
 
 def ff():
@@ -14,10 +13,8 @@ def ff():
         app, tok = creds.resolve()
     except creds.CredentialError as e:
         raise FanfouError(str(e))
-    key = (app.consumer_key, tok.token)
-    if key not in _clients:
-        _clients[key] = Fanfou(app.consumer_key, app.consumer_secret, tok.token, tok.token_secret)
-    return _clients[key]
+    # cheap object; built per call so one user's token can never leak into another request
+    return Fanfou(app.consumer_key, app.consumer_secret, tok.token, tok.token_secret)
 
 
 def _user(u):
