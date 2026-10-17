@@ -17,7 +17,7 @@ Region: vercel.json asks hkg1, but deployment reported iad1 (works fine).
 Never set FANFOU_MCP_ALLOW_NOAUTH in production (it disables the bearer check).
 
 ## Steps
-1. Create project (team `your-team`), framework "Other"/Python, root = this repo.
+1. Create project (your Vercel team), framework "Other"/Python, root = this repo.
 2. Add the 5 env vars above (Production).
 3. Deploy: `vercel deploy --prod` from this dir (or Git push / Vercel API). Preview URLs sit behind
    Vercel Deployment Protection, so test against the production domain.
@@ -32,9 +32,9 @@ Never set FANFOU_MCP_ALLOW_NOAUTH in production (it disables the bearer check).
   callback → access_token) that stores each user's token. Consumer key should then be an approved app of our own.
 
 ## Deployed 2026-10-17 (via Vercel MCP connector)
-- Team your-team, project `fanfou-mcp` (prj_xxxxxxxx), framework preset `python`
+- Your team, project `fanfou-mcp`, framework preset `python`
   (framework=null fails: `functions` pattern must be under /api). vercel.json `functions` block removed.
-- Production URL: https://fanfou-mcp.vercel.app/mcp  (healthz: /healthz). Runs in iad1 despite `regions: hkg1`;
+- Production URL: https://<your-project>.vercel.app/mcp  (health: /healthz). Runs in iad1 despite `regions: hkg1`;
   Fanfou API reachable from Vercel iad1 (no IP block observed).
 - 6 env vars, Production, Sensitive. MCP_AUTH_TOKEN copy on box: a private file (600, not in git).
 - Redeploy: upload changed files (upload_file, sha1) + create_deployment target=production, or `vercel deploy --prod`.
