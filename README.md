@@ -1,5 +1,8 @@
 # fanfou-mcp
 
+[English](README.md) · [中文](README.zh-CN.md)
+
+
 [Model Context Protocol](https://modelcontextprotocol.io) server for **[Fanfou (饭否)](https://fanfou.com)** — let Claude、Cursor 等 MCP 客户端读写你的饭否时间线。
 
 Two transports, same tools:
