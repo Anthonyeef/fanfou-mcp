@@ -2,7 +2,8 @@
 
 Production (pick one; checked in this order):
   1. Vercel KV / Upstash REST — KV_REST_API_URL + KV_REST_API_TOKEN
-     (UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN also accepted). Stdlib only.
+     (also UPSTASH_REDIS_REST_* and UPSTASH_KV_REST_API_* when the store uses a custom
+     UPSTASH prefix). Stdlib only.
   2. Redis URL — REDIS_URL or UPSTASH_REDIS_URL (Vercel Marketplace Redis injects REDIS_URL;
      rediss:// TLS is fine). Uses the `redis` package; short-lived connections (serverless-safe).
 Local: FANFOU_MCP_KV=memory → in-process dict (lost on restart; single process only).
@@ -159,8 +160,12 @@ def store():
     """
     global _store
     if _store is None:
-        rest_url = os.environ.get("KV_REST_API_URL") or os.environ.get("UPSTASH_REDIS_REST_URL")
-        rest_tok = os.environ.get("KV_REST_API_TOKEN") or os.environ.get("UPSTASH_REDIS_REST_TOKEN")
+        rest_url = (os.environ.get("KV_REST_API_URL")
+                    or os.environ.get("UPSTASH_REDIS_REST_URL")
+                    or os.environ.get("UPSTASH_KV_REST_API_URL"))
+        rest_tok = (os.environ.get("KV_REST_API_TOKEN")
+                    or os.environ.get("UPSTASH_REDIS_REST_TOKEN")
+                    or os.environ.get("UPSTASH_KV_REST_API_TOKEN"))
         redis_url = os.environ.get("REDIS_URL") or os.environ.get("UPSTASH_REDIS_URL")
         if rest_url and rest_tok:
             _store = UpstashKV(rest_url, rest_tok)

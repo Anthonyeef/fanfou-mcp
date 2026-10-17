@@ -133,7 +133,7 @@ These cost real debugging time; they are documented here so you don't have to re
 | `FANFOU_OAUTH_TOKEN` | single-user | User access token (owner account; optional in multi-user mode) |
 | `FANFOU_OAUTH_TOKEN_SECRET` | single-user | User access token secret |
 | `MCP_AUTH_TOKEN` | HTTP only | Admin / owner bearer token (`Authorization: Bearer <token>`); acts as the env account |
-| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | multi-user (option A) | Vercel KV / Upstash Redis **REST** credentials (`UPSTASH_REDIS_REST_URL` / `_TOKEN` also accepted) |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | multi-user (option A) | Vercel KV / Upstash Redis **REST** credentials. Also accepts `UPSTASH_REDIS_REST_*` and `UPSTASH_KV_REST_API_*` (custom UPSTASH prefix) |
 | `REDIS_URL` | multi-user (option B) | Redis URL (Vercel Marketplace Redis injects this; `rediss://` TLS ok). `UPSTASH_REDIS_URL` also accepted. Used only when REST env vars are unset |
 | `FANFOU_MCP_PUBLIC_URL` | multi-user | Public origin used to build the OAuth callback, e.g. `https://<your-project>.vercel.app`. Falls back to the request's Host header |
 | `FANFOU_MCP_KV` | no | `memory` = in-process KV for local dev (single process, lost on restart) |
