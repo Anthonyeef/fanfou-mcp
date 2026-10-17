@@ -1,10 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["hkg1"],
-  "functions": {
-    "http_app.py": {
-      "maxDuration": 30,
-      "excludeFiles": "{.venv/**,test_*.py,run.sh,dev_http.sh,README.md,DEPLOY.md}"
-    }
-  }
+  "regions": ["hkg1"]
 }
