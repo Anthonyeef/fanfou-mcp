@@ -7,10 +7,10 @@ Region: vercel.json asks hkg1, but deployment reported iad1 (works fine).
 ## Secrets (Project → Settings → Environment Variables, Production; mark Sensitive)
 | name | value |
 |---|---|
-| FANFOU_API_KEY | consumer key (`# default` section of ~/.fanfou_app) |
-| FANFOU_API_SECRET | consumer secret (same section) |
-| FANFOU_OAUTH_TOKEN | from ~/.fanfou_token (single-user phase) |
-| FANFOU_OAUTH_TOKEN_SECRET | from ~/.fanfou_token |
+| FANFOU_API_KEY | your approved app's consumer key |
+| FANFOU_API_SECRET | your approved app's consumer secret |
+| FANFOU_OAUTH_TOKEN | user access token (single-user phase) |
+| FANFOU_OAUTH_TOKEN_SECRET | user access token secret |
 | FANFOU_MCP_READONLY | `1` (remote default anyway; write tools not registered) |
 | MCP_AUTH_TOKEN | new random string, e.g. `python3 -c "import secrets;print(secrets.token_urlsafe(32))"`; clients send `Authorization: Bearer <it>` |
 
