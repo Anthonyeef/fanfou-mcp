@@ -142,8 +142,8 @@ These cost real debugging time; they are documented here so you don't have to re
 Optional convenience for `run.sh` / `dev_http.sh` (environment variables always win):
 
 - `~/.fanfou_app` — an INI-like file with sections headed `# <app name>` containing
-  `FANFOU_API_KEY=...` / `FANFOU_API_SECRET=...`; select the section with `FANFOU_APP_SECTION`.
-- `FANFOU_TOKEN_FILE` — a file containing `FANFOU_OAUTH_TOKEN=...` / `FANFOU_OAUTH_TOKEN_SECRET=...` lines.
+  `FANFOU_API_KEY=...` / `FANFOU_API_SECRET=...`; select the section with `FANFOU_APP_SECTION` (default `default`).
+- `FANFOU_TOKEN_FILE` (default `~/.fanfou_token`) — a file containing `FANFOU_OAUTH_TOKEN=...` / `FANFOU_OAUTH_TOKEN_SECRET=...` lines.
 
 Never commit these files or a `.env` (both are git-ignored).
 

@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Fanfou MCP (stdio). Credentials: env vars win; otherwise loaded from
 #   ~/.fanfou_app section "# ${FANFOU_APP_SECTION:-default}"  -> FANFOU_API_KEY / FANFOU_API_SECRET
-#   ${FANFOU_TOKEN_FILE:-~/.fanfou_token}               -> FANFOU_OAUTH_TOKEN / FANFOU_OAUTH_TOKEN_SECRET
-# (Old rejected app: FANFOU_APP_SECTION=default FANFOU_TOKEN_FILE=~/.fanfou_token)
+#   ${FANFOU_TOKEN_FILE:-~/.fanfou_token}                    -> FANFOU_OAUTH_TOKEN / FANFOU_OAUTH_TOKEN_SECRET
 set -e
 sec="${FANFOU_APP_SECTION:-default}"
 tokfile="${FANFOU_TOKEN_FILE:-$HOME/.fanfou_token}"
