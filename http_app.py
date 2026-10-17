@@ -2,6 +2,7 @@
 
 Endpoint: POST /mcp  (stateless, JSON responses — serverless friendly)
 Health:   GET  /healthz
+Mode:     read-only by default (FANFOU_MCP_READONLY, default 1 here; stdio default 0).
 Auth:     `Authorization: Bearer $MCP_AUTH_TOKEN` (required unless FANFOU_MCP_ALLOW_NOAUTH=1 for local dev).
           Phase 2 will swap this for MCP OAuth (per-user principal -> creds.current_principal).
 """
@@ -12,7 +13,10 @@ import os
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
 import creds
-from tools import mcp
+
+# Remote server is read-only unless explicitly overridden with FANFOU_MCP_READONLY=0.
+os.environ.setdefault("FANFOU_MCP_READONLY", "1")
+from tools import mcp, READONLY  # noqa: E402
 
 MCP_PATH = "/mcp"
 
@@ -45,7 +49,7 @@ async def app(scope, receive, send):
         return
     path = scope.get("path", "").rstrip("/") or "/"
     if path in ("/", "/healthz"):
-        return await _send_json(send, 200, {"ok": True, "name": "fanfou-mcp", "mcp_endpoint": MCP_PATH})
+        return await _send_json(send, 200, {"ok": True, "name": "fanfou-mcp", "mcp_endpoint": MCP_PATH, "readonly": READONLY})
     if path != MCP_PATH:
         return await _send_json(send, 404, {"error": "not found"})
     if not _authorized(scope):

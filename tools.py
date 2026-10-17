@@ -2,6 +2,7 @@
 Read tools are safe; write tools need explicit user confirmation."""
 from mcp.server.fastmcp import FastMCP
 from fanfou_api import Fanfou, FanfouError
+import os
 import creds
 
 mcp = FastMCP("fanfou", stateless_http=True, json_response=True)
@@ -154,3 +155,9 @@ def friendship(user_id: str, action: str = "create", confirm: bool = False) -> d
         return {"error": "not done: confirm=true required after explicit user confirmation"}
     return _call(lambda: _user(ff().post("/friendships/%s.json" % action, id=user_id)))
 
+
+WRITE_TOOLS = ("post_status", "delete_status", "favorite", "friendship")
+READONLY = os.environ.get("FANFOU_MCP_READONLY", "0") == "1"
+if READONLY:  # remote default: write tools are not even registered
+    for _name in WRITE_TOOLS:
+        mcp.remove_tool(_name)

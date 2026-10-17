@@ -11,6 +11,7 @@ Region pinned to `hkg1` (vercel.json) for latency to api.fanfou.com.
 | FANFOU_API_SECRET | consumer secret (same section) |
 | FANFOU_OAUTH_TOKEN | from ~/.fanfou_token (single-user phase) |
 | FANFOU_OAUTH_TOKEN_SECRET | from ~/.fanfou_token |
+| FANFOU_MCP_READONLY | `1` (remote default anyway; write tools not registered) |
 | MCP_AUTH_TOKEN | new random string, e.g. `python3 -c "import secrets;print(secrets.token_urlsafe(32))"`; clients send `Authorization: Bearer <it>` |
 
 Never set FANFOU_MCP_ALLOW_NOAUTH in production (it disables the bearer check).
