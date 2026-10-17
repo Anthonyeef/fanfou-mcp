@@ -19,11 +19,11 @@ Never set FANFOU_MCP_ALLOW_NOAUTH in production (it disables the bearer check).
 ### Multi-user mode (each user authorizes their own Fanfou account)
 | name | value |
 |---|---|
-| KV_REST_API_URL | injected when a Vercel KV / Upstash Redis store is connected to the project |
-| KV_REST_API_TOKEN | same (keep it secret: the store holds users' Fanfou access tokens) |
+| KV_REST_API_URL / KV_REST_API_TOKEN | option A: Vercel KV / Upstash Redis REST (keep secret: store holds users' Fanfou tokens) |
+| REDIS_URL | option B: Vercel Marketplace Redis (or any `redis://` / `rediss://` URL). Used when REST vars are unset |
 | FANFOU_MCP_PUBLIC_URL | `https://<your-project>.vercel.app` (OAuth callback base; don't rely on the Host header) |
 
-With KV configured, FANFOU_OAUTH_TOKEN[_SECRET] and MCP_AUTH_TOKEN become optional: if set, MCP_AUTH_TOKEN
+Either option A or B enables multi-user mode. With storage configured, FANFOU_OAUTH_TOKEN[_SECRET] and MCP_AUTH_TOKEN become optional: if set, MCP_AUTH_TOKEN
 still works as an admin/owner login acting as the env account (backward compatible).
 
 Routes:

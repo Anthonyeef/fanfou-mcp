@@ -133,7 +133,8 @@ These cost real debugging time; they are documented here so you don't have to re
 | `FANFOU_OAUTH_TOKEN` | single-user | User access token (owner account; optional in multi-user mode) |
 | `FANFOU_OAUTH_TOKEN_SECRET` | single-user | User access token secret |
 | `MCP_AUTH_TOKEN` | HTTP only | Admin / owner bearer token (`Authorization: Bearer <token>`); acts as the env account |
-| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | multi-user | Vercel KV / Upstash Redis REST credentials. Setting them enables multi-user mode (`UPSTASH_REDIS_REST_URL` / `_TOKEN` also accepted) |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | multi-user (option A) | Vercel KV / Upstash Redis **REST** credentials (`UPSTASH_REDIS_REST_URL` / `_TOKEN` also accepted) |
+| `REDIS_URL` | multi-user (option B) | Redis URL (Vercel Marketplace Redis injects this; `rediss://` TLS ok). `UPSTASH_REDIS_URL` also accepted. Used only when REST env vars are unset |
 | `FANFOU_MCP_PUBLIC_URL` | multi-user | Public origin used to build the OAuth callback, e.g. `https://<your-project>.vercel.app`. Falls back to the request's Host header |
 | `FANFOU_MCP_KV` | no | `memory` = in-process KV for local dev (single process, lost on restart) |
 | `FANFOU_MCP_READONLY` | no | `1` = don't register write tools. Default `0` for stdio, `1` for HTTP |
@@ -272,8 +273,9 @@ Storage (Vercel KV / Upstash Redis, REST API):
 Personal tokens are never stored in clear, only their SHA-256. The KV does hold users' Fanfou access tokens,
 so treat the KV credentials as secrets.
 
-Setup on Vercel: create a KV / Upstash Redis store and connect it to the project (this injects
-`KV_REST_API_URL` and `KV_REST_API_TOKEN`), set `FANFOU_MCP_PUBLIC_URL`, keep `FANFOU_API_KEY` /
+Setup on Vercel: attach either a **KV / Upstash** store (injects `KV_REST_API_URL` + `KV_REST_API_TOKEN`)
+or the official **Redis** Marketplace integration (injects `REDIS_URL`). Either one enables multi-user
+mode; REST is preferred when both are set. Then set `FANFOU_MCP_PUBLIC_URL`, keep `FANFOU_API_KEY` /
 `FANFOU_API_SECRET` (an approved app), and redeploy. `MCP_AUTH_TOKEN` + `FANFOU_OAUTH_TOKEN[_SECRET]` are
 optional and keep working as an admin/owner login. See [DEPLOY.md](DEPLOY.md).
 
