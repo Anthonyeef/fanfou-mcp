@@ -1,0 +1,6 @@
+[project]
+name = "fanfou-mcp-box"
+version = "0.1.0"
+description = "Fanfou MCP server (stdio), https transport + http-signed OAuth1"
+requires-python = ">=3.10"
+dependencies = ["mcp>=1.2,<2"]
