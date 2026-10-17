@@ -1,5 +1,9 @@
 # fanfou-mcp (box)
 
+Layout: `fanfou_api.py` (OAuth1 client) · `creds.py` (credential resolution, per-user hook) · `tools.py` (15 tools) ·
+`server.py` (stdio) · `http_app.py` (remote Streamable HTTP, bearer auth) · `vercel.json` + DEPLOY.md.
+Local HTTP: `MCP_AUTH_TOKEN=... ./dev_http.sh` then `uv run python test_http_client.py`.
+
 stdio MCP server for Fanfou. Python + mcp<2 (FastMCP), stdlib HTTP.
 
 - Transport: https://api.fanfou.com (box blocks port 80); OAuth1 base string signed with **http://** URL (Fanfou quirk).
