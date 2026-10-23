@@ -6,10 +6,20 @@ signature base string MUST use the http:// URL, otherwise the server answers
 Note: the api gateway returns nginx 404 for a curl/* User-Agent, so we set our own UA.
 """
 import base64, hashlib, hmac, json, os, secrets, time
+import socket
 import urllib.error, urllib.parse, urllib.request
 
 API = "api.fanfou.com"
 UA = "fanfou-mcp-box/0.1 (Python-urllib)"
+# Keep per-try timeout modest; retries cover intermittent TLS/handshake stalls
+# without stacking past typical remote MCP / Vercel budgets.
+TIMEOUT = 30
+GET_ATTEMPTS = 3  # 1 initial + 2 retries
+GET_BACKOFF = (0.8, 2.0)
+
+
+def _is_retryable_http(code):
+    return code in (408, 425, 429, 500, 502, 503, 504)
 
 
 def _q(s):
@@ -84,8 +94,7 @@ class Fanfou:
     def _auth(self, method, path, params):
         return oauth_header(method, "http://%s%s" % (API, path), params, self.ck, self.cs, self.tok, self.ts)
 
-    def request(self, method, path, params=None):
-        params = {k: v for k, v in (params or {}).items() if v is not None and v != ""}
+    def _once(self, method, path, params):
         hdr = {"Authorization": self._auth(method, path, params), "User-Agent": UA}
         url = "https://%s%s" % (API, path)
         data = None
@@ -96,7 +105,10 @@ class Fanfou:
             data = "&".join("%s=%s" % (_q(k), _q(v)) for k, v in params.items()).encode()
             hdr["Content-Type"] = "application/x-www-form-urlencoded"
         try:
-            with urllib.request.urlopen(urllib.request.Request(url, data=data, method=method, headers=hdr), timeout=30) as r:
+            with urllib.request.urlopen(
+                urllib.request.Request(url, data=data, method=method, headers=hdr),
+                timeout=TIMEOUT,
+            ) as r:
                 return json.loads(r.read().decode())
         except urllib.error.HTTPError as e:
             body = e.read().decode(errors="replace")
@@ -104,7 +116,27 @@ class Fanfou:
                 msg = json.loads(body).get("error", body)
             except Exception:
                 msg = body[:300]
-            raise FanfouError("HTTP %s: %s" % (e.code, msg))
+            err = FanfouError("HTTP %s: %s" % (e.code, msg))
+            err.http_code = e.code  # type: ignore[attr-defined]
+            raise err
+        except (urllib.error.URLError, TimeoutError, socket.timeout, OSError) as e:
+            raise FanfouError("network error on %s %s: %s" % (method, path, e)) from e
+
+    def request(self, method, path, params=None):
+        params = {k: v for k, v in (params or {}).items() if v is not None and v != ""}
+        attempts = GET_ATTEMPTS if method == "GET" else 1
+        last = None
+        for i in range(attempts):
+            try:
+                return self._once(method, path, params)
+            except FanfouError as e:
+                last = e
+                code = getattr(e, "http_code", None)
+                retryable = code is None or _is_retryable_http(code)
+                if (not retryable) or i >= attempts - 1:
+                    raise
+                time.sleep(GET_BACKOFF[min(i, len(GET_BACKOFF) - 1)])
+        raise last  # pragma: no cover
 
     def get(self, path, **params):
         return self.request("GET", path, params)
